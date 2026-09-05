@@ -8,4 +8,4 @@ source /home/airflow/.venv/bin/activate
 airflow standalone &
 
 # Start Jupyter Lab in the foreground
-exec jupyter lab --allow-root --ip=0.0.0.0 --no-browser --IdentityProvider.token=''
+exec jupyter lab --allow-root --ip=0.0.0.0 --no-browser --NotebookApp.token='' --NotebookApp.password=''
