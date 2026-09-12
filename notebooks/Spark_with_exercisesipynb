@@ -1,0 +1,864 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 13,
+   "id": "6b905c3d-8b94-4cc7-8ef3-b56cdcab8f7f",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "'################################################################################'\n",
+      "'Use standard python libraries to do the transformations'\n",
+      "'################################################################################'\n"
+     ]
+    }
+   ],
+   "source": [
+    "## With standard Libraries:\n",
+    "print(\n",
+    "    \"################################################################################\"\n",
+    ")\n",
+    "print(\"Use standard python libraries to do the transformations\")\n",
+    "print(\n",
+    "    \"################################################################################\"\n",
+    ")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "id": "4f070975-a007-43d0-a5c9-44aee42fec8b",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "[{'Customer_ID': '1',\n",
+      "  'Customer_Name': 'Henry Jones',\n",
+      "  'Age': '32',\n",
+      "  'Gender': 'Male',\n",
+      "  'Purchase_Amount': '1080000.66',\n",
+      "  'Purchase_Date': '2023-08-15'},\n",
+      " {'Customer_ID': '2',\n",
+      "  'Customer_Name': 'Emma Rodriguez',\n",
+      "  'Age': '24',\n",
+      "  'Gender': 'Male',\n",
+      "  'Purchase_Amount': '62.4',\n",
+      "  'Purchase_Date': '2024-04-16'}]\n"
+     ]
+    }
+   ],
+   "source": [
+    "import csv\n",
+    "from pprint import pp as print\n",
+    "data = []\n",
+    "with open('/home/airflow/notebooks/sample_data.csv', 'r', newline='') as csvfile:\n",
+    "    reader = csv.DictReader(csvfile)\n",
+    "    for row in reader:\n",
+    "        data.append(row)\n",
+    "print(data[:2])"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "id": "57e08b9b-5fd8-40dc-b7d5-27deb26702f0",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "data_unique =[]\n",
+    "customer_ids_seen = set()\n",
+    "for row in data:\n",
+    "    if row['Customer_ID'] not in customer_ids_seen:\n",
+    "        data_unique.append(row['Customer_ID'])\n",
+    "    else:\n",
+    "        print(f'duplicate customer id {row['Customer_ID']}')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 12,
+   "id": "2b819193-a1de-48da-9460-db39a02dfe26",
+   "metadata": {},
+   "outputs": [
+    {
+     "ename": "AttributeError",
+     "evalue": "'list' object has no attribute 'values'",
+     "output_type": "error",
+     "traceback": [
+      "\u001b[31m---------------------------------------------------------------------------\u001b[39m",
+      "\u001b[31mAttributeError\u001b[39m                            Traceback (most recent call last)",
+      "\u001b[36mCell\u001b[39m\u001b[36m \u001b[39m\u001b[32mIn[12]\u001b[39m\u001b[32m, line 3\u001b[39m\n\u001b[32m      1\u001b[39m \u001b[38;5;66;03m# If an entry in data_unique does not have Age set it to 0,\u001b[39;00m\n\u001b[32m      2\u001b[39m \u001b[38;5;66;03m# do the same for Purchase_Amount\u001b[39;00m\n\u001b[32m----> \u001b[39m\u001b[32m3\u001b[39m \u001b[38;5;28;01mfor\u001b[39;00m row \u001b[38;5;28;01min\u001b[39;00m data_unique.values():\n\u001b[32m      4\u001b[39m     \u001b[38;5;28;01mif\u001b[39;00m \u001b[38;5;28;01mnot\u001b[39;00m row[\u001b[33m\"Age\"\u001b[39m]:\n\u001b[32m      5\u001b[39m         print(f'Customer {row[\u001b[33m\"Customer_Name\"\u001b[39m]} does not have Age value')\n\u001b[32m      6\u001b[39m         row[\u001b[33m\"Age\"\u001b[39m] = \u001b[32m0\u001b[39m\n",
+      "\u001b[31mAttributeError\u001b[39m: 'list' object has no attribute 'values'"
+     ]
+    }
+   ],
+   "source": [
+    "# If an entry in data_unique does not have Age set it to 0, \n",
+    "# do the same for Purchase_Amount \n",
+    "for row in data_unique:\n",
+    "    if not row[\"Age\"]:\n",
+    "        print(f'Customer {row[\"Customer_Name\"]} does not have Age value')\n",
+    "        row[\"Age\"] = 0\n",
+    "    if not row[\"Purchase_Amount\"]:\n",
+    "        row[\"Purchase_Amount\"] = 0.0\n",
+    "\n",
+    "# remove outliers, assume we define outliers as any record with age over 100 \n",
+    "# or age under 0\n",
+    "data_cleaned = [\n",
+    "    row\n",
+    "    for row in data_unique\n",
+    "    if int(row[\"Age\"]) <= 100 and float(row[\"Purchase_Amount\"]) <= 1000\n",
+    "]\n",
+    "\n",
+    "# convert the Gender column to a binary format (0 for Female, 1 for Male)\n",
+    "for row in data_cleaned:\n",
+    "    if row[\"Gender\"] == \"Female\":\n",
+    "        row[\"Gender\"] = 0\n",
+    "    elif row[\"Gender\"] == \"Male\":\n",
+    "        row[\"Gender\"] = 1\n",
+    "\n",
+    "# split the Customer_Name column into separate First_Name and Last_Name\n",
+    "# Assume customer_name is of the format First_Name Last_name\n",
+    "for row in data_cleaned:\n",
+    "    first_name, last_name = row[\"Customer_Name\"].split(\" \", 1)\n",
+    "    row[\"First_Name\"] = first_name\n",
+    "    row[\"Last_Name\"] = last_name\n",
+    "\n",
+    "print(data_cleaned[:3])"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "id": "1f098998-682a-41f8-b2af-165a97f8c432",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "################################################################################\n",
+      "Use PySpark DataFrame API to do the transformations\n",
+      "################################################################################\n"
+     ]
+    }
+   ],
+   "source": [
+    "spark\n",
+    "print(\n",
+    "    \"################################################################################\"\n",
+    ")\n",
+    "print(\"Use PySpark DataFrame API to do the transformations\")\n",
+    "print(\n",
+    "    \"################################################################################\"\n",
+    ")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 42,
+   "id": "d680a288-62ee-4e0d-9326-d3dcccd491f3",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from pyspark.sql import SparkSession # It gives you Spark's DataFrame and SQL functionality.\n",
+    "#Spark's built-in functions.\n",
+    "from pyspark.sql.functions import col, coalesce, lit, when, split, sum as spark_sum, avg, regexp_replace, round, mean\n",
+    "#This is for data types and schemas.\n",
+    "from pyspark.sql.types import StructType, StructField, IntegerType, StringType, FloatType, DateType\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "id": "b6c9f24b-2d55-4bb2-b4fb-cc4be44d9c16",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "schema = StructType([\n",
+    "    StructField(\"Customer_ID\", IntegerType(), True),\n",
+    "    StructField(\"Customer_Name\", StringType(), True),\n",
+    "    StructField(\"Age\", IntegerType(), True),\n",
+    "    StructField(\"Gender\", StringType(), True),\n",
+    "    StructField(\"Purchase_Amount\", FloatType(), True),\n",
+    "    StructField(\"Purchase_Date\", DateType(), True)\n",
+    "])"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "id": "996cf58d-6870-4082-a971-73c936162616",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "\n",
+    "data = spark.read \\\n",
+    "    .option(\"header\", \"true\") \\\n",
+    "    .option(\"inferSchema\", \"false\") \\\n",
+    "    .schema(schema) \\\n",
+    "    .csv(\"./sample_data.csv\")\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "id": "c65f4ed2-ff90-48e5-ab19-6f77b6213cd0",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "data_unique = data.dropDuplicates()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "id": "f7abd8d9-14ee-4a97-a8c4-1ebd67706672",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#handling missing values by replacing them with 0 in pyspark\n",
+    "data_cleaned_missing = data_unique.select(\n",
+    "    col(\"Customer_ID\"),\n",
+    "    col(\"Customer_Name\"),\n",
+    "    coalesce(col(\"Age\"), lit(0)).alias(\"Age\"),\n",
+    "    col(\"Gender\"),\n",
+    "    coalesce(col(\"Purchase_Amount\"), lit(0.0)).alias(\"Purchase_Amount\"),\n",
+    "    col(\"Purchase_Date\")\n",
+    ")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "id": "61b36728-642e-4f6f-9100-27adb19d167f",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "                                                                                "
+     ]
+    },
+    {
+     "data": {
+      "text/plain": [
+       "[Row(Customer_ID=27, Customer_Name='Ivy Martinez', Age=22, Gender='Female', Purchase_Amount=115.68000030517578, Purchase_Date=datetime.date(2023, 8, 24)),\n",
+       " Row(Customer_ID=71, Customer_Name='Henry Williams', Age=41, Gender='Female', Purchase_Amount=323.6600036621094, Purchase_Date=datetime.date(2023, 8, 20)),\n",
+       " Row(Customer_ID=80, Customer_Name='Charlie Jones', Age=38, Gender='Female', Purchase_Amount=282.3500061035156, Purchase_Date=datetime.date(2024, 4, 14)),\n",
+       " Row(Customer_ID=99, Customer_Name='Alice Johnson', Age=0, Gender='Female', Purchase_Amount=781.8300170898438, Purchase_Date=datetime.date(2023, 6, 4)),\n",
+       " Row(Customer_ID=100, Customer_Name='Jack Garcia', Age=0, Gender='Female', Purchase_Amount=269.6400146484375, Purchase_Date=datetime.date(2024, 3, 8))]"
+      ]
+     },
+     "execution_count": 7,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "data_cleaned_missing.tail(5)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 9,
+   "id": "b238320a-44cb-4e0f-9c07-fbbbf840588e",
+   "metadata": {
+    "scrolled": true
+   },
+   "outputs": [],
+   "source": [
+    "data_cleaned_outliers = data_cleaned_missing.filter(\n",
+    "    (col('Age') <= 100) & (col('Purchase_Amount') <= 1000)\n",
+    ")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "id": "2c051cd9-d30b-49db-8ae1-d9950406ebd6",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "+-----------+---------------+---+------+------------------+-------------+\n",
+      "|Customer_ID|  Customer_Name|Age|Gender|   Purchase_Amount|Purchase_Date|\n",
+      "+-----------+---------------+---+------+------------------+-------------+\n",
+      "|         35| Grace Williams| 58|  Male|139.00999450683594|   2024-04-23|\n",
+      "|         93|  Bob Rodriguez| 26|  Male| 891.4600219726562|   2024-01-22|\n",
+      "|         58|    Alice Jones| 50|  Male| 397.8900146484375|   2023-10-04|\n",
+      "|         97|      Ivy Brown| 21|  Male|465.45001220703125|   2023-09-06|\n",
+      "|         25|  David Johnson| 41|Female| 964.0399780273438|   2023-12-30|\n",
+      "|         76|David Rodriguez| 23|  Male| 212.2899932861328|   2024-03-16|\n",
+      "|         33|Grace Rodriguez| 43|  Male| 366.4200134277344|   2023-07-30|\n",
+      "|         72|   Frank Miller| 66|Female| 932.3599853515625|   2024-02-19|\n",
+      "|         18|  Jack Martinez| 64|Female| 831.7999877929688|   2023-11-07|\n",
+      "|         83| Alice Martinez| 41|Female| 185.8300018310547|   2024-02-20|\n",
+      "|         31|    Grace Smith| 19|  Male| 567.2999877929688|   2024-04-13|\n",
+      "|         48|    Alice Smith| 23|Female| 762.8599853515625|   2024-03-04|\n",
+      "|         13|  Charlie Jones| 24|Female| 330.8699951171875|   2023-11-11|\n",
+      "|         42|  Charlie Smith| 66|  Male| 392.2699890136719|   2023-11-03|\n",
+      "|          9|     Emma Jones| 50|Female| 575.6900024414062|   2023-12-11|\n",
+      "|         88| Jack Rodriguez| 30|  Male| 840.4299926757812|   2023-07-27|\n",
+      "|          7|    Grace Jones| 53|Female|29.719999313354492|   2023-10-01|\n",
+      "|         70|   Bob Williams| 48|Female|            711.75|   2024-04-11|\n",
+      "|          4|Alice Rodriguez| 62|Female| 729.6900024414062|   2024-01-05|\n",
+      "|         29| Charlie Garcia| 42|Female| 696.1900024414062|   2023-07-26|\n",
+      "+-----------+---------------+---+------+------------------+-------------+\n",
+      "only showing top 20 rows\n"
+     ]
+    }
+   ],
+   "source": [
+    "data_cleaned_outliers.show()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 11,
+   "id": "5ae3e2d5-8f57-4424-a0df-9f6f322e2e41",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Question: How do you convert the Gender column to a binary format \n",
+    "# (0 for Female, 1 for Male) in PySpark?\n",
+    "data_cleaned_gender = data_cleaned_outliers.withColumn(\n",
+    "    \"Gender_Binary\",\n",
+    "    when(col('Gender') == 'Female', 0).otherwise(1)\n",
+    ")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 16,
+   "id": "f938d838-b053-4a33-b640-6892cc5d9a6a",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "+-----------+---------------+---+------+------------------+-------------+-------------+\n",
+      "|Customer_ID|  Customer_Name|Age|Gender|   Purchase_Amount|Purchase_Date|Gender_Binary|\n",
+      "+-----------+---------------+---+------+------------------+-------------+-------------+\n",
+      "|         35| Grace Williams| 58|  Male|139.00999450683594|   2024-04-23|            1|\n",
+      "|         93|  Bob Rodriguez| 26|  Male| 891.4600219726562|   2024-01-22|            1|\n",
+      "|         58|    Alice Jones| 50|  Male| 397.8900146484375|   2023-10-04|            1|\n",
+      "|         97|      Ivy Brown| 21|  Male|465.45001220703125|   2023-09-06|            1|\n",
+      "|         25|  David Johnson| 41|Female| 964.0399780273438|   2023-12-30|            0|\n",
+      "|         76|David Rodriguez| 23|  Male| 212.2899932861328|   2024-03-16|            1|\n",
+      "|         33|Grace Rodriguez| 43|  Male| 366.4200134277344|   2023-07-30|            1|\n",
+      "|         72|   Frank Miller| 66|Female| 932.3599853515625|   2024-02-19|            0|\n",
+      "|         18|  Jack Martinez| 64|Female| 831.7999877929688|   2023-11-07|            0|\n",
+      "|         83| Alice Martinez| 41|Female| 185.8300018310547|   2024-02-20|            0|\n",
+      "|         31|    Grace Smith| 19|  Male| 567.2999877929688|   2024-04-13|            1|\n",
+      "|         48|    Alice Smith| 23|Female| 762.8599853515625|   2024-03-04|            0|\n",
+      "|         13|  Charlie Jones| 24|Female| 330.8699951171875|   2023-11-11|            0|\n",
+      "|         42|  Charlie Smith| 66|  Male| 392.2699890136719|   2023-11-03|            1|\n",
+      "|          9|     Emma Jones| 50|Female| 575.6900024414062|   2023-12-11|            0|\n",
+      "|         88| Jack Rodriguez| 30|  Male| 840.4299926757812|   2023-07-27|            1|\n",
+      "|          7|    Grace Jones| 53|Female|29.719999313354492|   2023-10-01|            0|\n",
+      "|         70|   Bob Williams| 48|Female|            711.75|   2024-04-11|            0|\n",
+      "|          4|Alice Rodriguez| 62|Female| 729.6900024414062|   2024-01-05|            0|\n",
+      "|         29| Charlie Garcia| 42|Female| 696.1900024414062|   2023-07-26|            0|\n",
+      "+-----------+---------------+---+------+------------------+-------------+-------------+\n",
+      "only showing top 20 rows\n"
+     ]
+    }
+   ],
+   "source": [
+    "data_cleaned_gender.show()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 29,
+   "id": "060e3f4a-2238-4904-9608-1546c5dc7d59",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "+-------------+\n",
+      "|Gender_Binary|\n",
+      "+-------------+\n",
+      "|            1|\n",
+      "|            1|\n",
+      "|            1|\n",
+      "|            1|\n",
+      "|            0|\n",
+      "|            1|\n",
+      "|            1|\n",
+      "|            0|\n",
+      "|            0|\n",
+      "|            0|\n",
+      "|            1|\n",
+      "|            0|\n",
+      "|            0|\n",
+      "|            1|\n",
+      "|            0|\n",
+      "|            1|\n",
+      "|            0|\n",
+      "|            0|\n",
+      "|            0|\n",
+      "|            0|\n",
+      "+-------------+\n",
+      "only showing top 20 rows\n"
+     ]
+    }
+   ],
+   "source": [
+    "data_cleaned_gender.select('Gender_Binary').show()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 18,
+   "id": "61fcd5f4-3a35-436e-8c6b-e91f741270f3",
+   "metadata": {
+    "scrolled": true
+   },
+   "outputs": [],
+   "source": [
+    "# Question: How do you split the Customer_Name column into separate First_Name and Last_Name columns\n",
+    "#in PySpark?\n",
+    "data_cleaned = data_cleaned_gender.select(\n",
+    "    col(\"Customer_ID\"),\n",
+    "    split(col(\"Customer_Name\"), \" \").getItem(0).alias(\"First_Name\"),\n",
+    "    split(col(\"Customer_Name\"), \" \").getItem(1).alias(\"Last_Name\"),\n",
+    "    col(\"Age\"),\n",
+    "    col(\"Gender_Binary\"),\n",
+    "    col(\"Purchase_Amount\"),\n",
+    "    col(\"Purchase_Date\")\n",
+    ")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 19,
+   "id": "ba8599ba-5ee9-4d1f-8464-a724ddf7bfb6",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "+-----------+----------+---------+---+-------------+------------------+-------------+\n",
+      "|Customer_ID|First_Name|Last_Name|Age|Gender_Binary|   Purchase_Amount|Purchase_Date|\n",
+      "+-----------+----------+---------+---+-------------+------------------+-------------+\n",
+      "|         35|     Grace| Williams| 58|            1|139.00999450683594|   2024-04-23|\n",
+      "|         93|       Bob|Rodriguez| 26|            1| 891.4600219726562|   2024-01-22|\n",
+      "|         58|     Alice|    Jones| 50|            1| 397.8900146484375|   2023-10-04|\n",
+      "|         97|       Ivy|    Brown| 21|            1|465.45001220703125|   2023-09-06|\n",
+      "|         25|     David|  Johnson| 41|            0| 964.0399780273438|   2023-12-30|\n",
+      "|         76|     David|Rodriguez| 23|            1| 212.2899932861328|   2024-03-16|\n",
+      "|         33|     Grace|Rodriguez| 43|            1| 366.4200134277344|   2023-07-30|\n",
+      "|         72|     Frank|   Miller| 66|            0| 932.3599853515625|   2024-02-19|\n",
+      "|         18|      Jack| Martinez| 64|            0| 831.7999877929688|   2023-11-07|\n",
+      "|         83|     Alice| Martinez| 41|            0| 185.8300018310547|   2024-02-20|\n",
+      "|         31|     Grace|    Smith| 19|            1| 567.2999877929688|   2024-04-13|\n",
+      "|         48|     Alice|    Smith| 23|            0| 762.8599853515625|   2024-03-04|\n",
+      "|         13|   Charlie|    Jones| 24|            0| 330.8699951171875|   2023-11-11|\n",
+      "|         42|   Charlie|    Smith| 66|            1| 392.2699890136719|   2023-11-03|\n",
+      "|          9|      Emma|    Jones| 50|            0| 575.6900024414062|   2023-12-11|\n",
+      "|         88|      Jack|Rodriguez| 30|            1| 840.4299926757812|   2023-07-27|\n",
+      "|          7|     Grace|    Jones| 53|            0|29.719999313354492|   2023-10-01|\n",
+      "|         70|       Bob| Williams| 48|            0|            711.75|   2024-04-11|\n",
+      "|          4|     Alice|Rodriguez| 62|            0| 729.6900024414062|   2024-01-05|\n",
+      "|         29|   Charlie|   Garcia| 42|            0| 696.1900024414062|   2023-07-26|\n",
+      "+-----------+----------+---------+---+-------------+------------------+-------------+\n",
+      "only showing top 20 rows\n"
+     ]
+    }
+   ],
+   "source": [
+    "data_cleaned.show()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 20,
+   "id": "8162eacb-c4e7-45b3-b21a-dbef26de8194",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "## Question: How do you calculate the total purchase amount by Gender in PySpark?\n",
+    "total_purchase_by_gender = data_cleaned.groupBy(\"Gender_Binary\")\\\n",
+    "    .agg(spark_sum(\"Purchase_Amount\").alias('Total_Purchase_Amount'))\\\n",
+    "    .collect()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 24,
+   "id": "52f7e2e0-ac6e-43e7-ad0c-74065ea6ff04",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "[Row(Gender_Binary=1, Total_Purchase_Amount=24599.89005279541),\n",
+       " Row(Gender_Binary=0, Total_Purchase_Amount=28215.77996635437)]"
+      ]
+     },
+     "execution_count": 24,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "total_purchase_by_gender"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 25,
+   "id": "af28a682-f939-4e33-94a5-5d35d79a84c2",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Question: How do you calculate the average purchase amount by Age group in PySpark?\n",
+    "avg_purchase_by_age_group = data_cleaned.withColumn(\n",
+    "    \"Age_Group\", # Alias for the column\n",
+    "     when((col(\"Age\") >= 18) & (col(\"Age\") <= 30), \"18-30\")\n",
+    "    .when((col(\"Age\") >= 31) & (col(\"Age\") <= 40), \"31-40\")\n",
+    "    .when((col(\"Age\") >= 41) & (col(\"Age\") <= 50), \"41-50\")\n",
+    "    .when((col(\"Age\") >= 51) & (col(\"Age\") <= 60), \"51-60\")\n",
+    "    .otherwise(\"61-70\")\n",
+    ").groupBy('Age_Group')\\\n",
+    "    .agg(avg('Purchase_Amount').alias('Avg_purchase_Amount'))\\\n",
+    "    .collect()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 26,
+   "id": "37dfd6fa-99f9-4429-be57-f8653a463872",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "[Row(Age_Group='18-30', Avg_purchase_Amount=570.8131050899111),\n",
+       " Row(Age_Group='41-50', Avg_purchase_Amount=493.946000289917),\n",
+       " Row(Age_Group='31-40', Avg_purchase_Amount=555.2423526539523),\n",
+       " Row(Age_Group='51-60', Avg_purchase_Amount=494.51882250168745),\n",
+       " Row(Age_Group='61-70', Avg_purchase_Amount=533.576874256134)]"
+      ]
+     },
+     "execution_count": 26,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "avg_purchase_by_age_group"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 30,
+   "id": "f7e9b231-ffc4-4e24-8564-6e67a340bc01",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Average purchase amount by Age group:\n",
+      "Age_Group: 18-30, Average_Purchase_Amount: 570.8131050899111\n",
+      "Age_Group: 41-50, Average_Purchase_Amount: 493.946000289917\n",
+      "Age_Group: 31-40, Average_Purchase_Amount: 555.2423526539523\n",
+      "Age_Group: 51-60, Average_Purchase_Amount: 494.51882250168745\n",
+      "Age_Group: 61-70, Average_Purchase_Amount: 533.576874256134\n"
+     ]
+    }
+   ],
+   "source": [
+    "print(\"Average purchase amount by Age group:\")\n",
+    "for row in avg_purchase_by_age_group:\n",
+    "    print(f\"Age_Group: {row['Age_Group']}, Average_Purchase_Amount: {row['Avg_purchase_Amount']}\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 31,
+   "id": "f143f5a3-d35b-4ae8-a59a-075a1d95dacb",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Gender_Binary: 1, Total_Purchase_Amount: 24599.89005279541\n",
+      "Gender_Binary: 0, Total_Purchase_Amount: 28215.77996635437\n"
+     ]
+    }
+   ],
+   "source": [
+    "for row in total_purchase_by_gender:\n",
+    "    print(f\"Gender_Binary: {row['Gender_Binary']}, Total_Purchase_Amount: {row['Total_Purchase_Amount']}\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 32,
+   "id": "c044c6f3-2598-468e-adbc-8183f27658cb",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "\n",
+      "====================== Data Preview ======================\n",
+      "Final cleaned data:\n",
+      "+-----------+----------+---------+---+-------------+------------------+-------------+\n",
+      "|Customer_ID|First_Name|Last_Name|Age|Gender_Binary|   Purchase_Amount|Purchase_Date|\n",
+      "+-----------+----------+---------+---+-------------+------------------+-------------+\n",
+      "|         35|     Grace| Williams| 58|            1|139.00999450683594|   2024-04-23|\n",
+      "|         93|       Bob|Rodriguez| 26|            1| 891.4600219726562|   2024-01-22|\n",
+      "|         58|     Alice|    Jones| 50|            1| 397.8900146484375|   2023-10-04|\n",
+      "|         97|       Ivy|    Brown| 21|            1|465.45001220703125|   2023-09-06|\n",
+      "|         25|     David|  Johnson| 41|            0| 964.0399780273438|   2023-12-30|\n",
+      "|         76|     David|Rodriguez| 23|            1| 212.2899932861328|   2024-03-16|\n",
+      "|         33|     Grace|Rodriguez| 43|            1| 366.4200134277344|   2023-07-30|\n",
+      "|         72|     Frank|   Miller| 66|            0| 932.3599853515625|   2024-02-19|\n",
+      "|         18|      Jack| Martinez| 64|            0| 831.7999877929688|   2023-11-07|\n",
+      "|         83|     Alice| Martinez| 41|            0| 185.8300018310547|   2024-02-20|\n",
+      "+-----------+----------+---------+---+-------------+------------------+-------------+\n",
+      "only showing top 10 rows\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Optional: Show DataFrame contents for verification\n",
+    "print(\"\\n====================== Data Preview ======================\")\n",
+    "print(\"Final cleaned data:\")\n",
+    "data_cleaned.show(10)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 33,
+   "id": "5116b0c8-e7cb-4ab9-9806-d2e43f778288",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "data_cleaned = data_cleaned.withColumn(\n",
+    "    \"Age_Group\",\n",
+    "    when((col(\"Age\") >= 18) & (col(\"Age\") <= 30), \"18-30\")\n",
+    "    .when((col(\"Age\") >= 31) & (col(\"Age\") <= 40), \"31-40\")\n",
+    "    .when((col(\"Age\") >= 41) & (col(\"Age\") <= 50), \"41-50\")\n",
+    "    .when((col(\"Age\") >= 51) & (col(\"Age\") <= 60), \"51-60\")\n",
+    "    .otherwise(\"61-70\")\n",
+    ")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 34,
+   "id": "75f33df4-9f0b-4333-b268-e23c07411c6b",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "+-----------+----------+---------+---+-------------+------------------+-------------+---------+\n",
+      "|Customer_ID|First_Name|Last_Name|Age|Gender_Binary|   Purchase_Amount|Purchase_Date|Age_Group|\n",
+      "+-----------+----------+---------+---+-------------+------------------+-------------+---------+\n",
+      "|         35|     Grace| Williams| 58|            1|139.00999450683594|   2024-04-23|    51-60|\n",
+      "|         93|       Bob|Rodriguez| 26|            1| 891.4600219726562|   2024-01-22|    18-30|\n",
+      "|         58|     Alice|    Jones| 50|            1| 397.8900146484375|   2023-10-04|    41-50|\n",
+      "|         97|       Ivy|    Brown| 21|            1|465.45001220703125|   2023-09-06|    18-30|\n",
+      "|         25|     David|  Johnson| 41|            0| 964.0399780273438|   2023-12-30|    41-50|\n",
+      "|         76|     David|Rodriguez| 23|            1| 212.2899932861328|   2024-03-16|    18-30|\n",
+      "|         33|     Grace|Rodriguez| 43|            1| 366.4200134277344|   2023-07-30|    41-50|\n",
+      "|         72|     Frank|   Miller| 66|            0| 932.3599853515625|   2024-02-19|    61-70|\n",
+      "|         18|      Jack| Martinez| 64|            0| 831.7999877929688|   2023-11-07|    61-70|\n",
+      "|         83|     Alice| Martinez| 41|            0| 185.8300018310547|   2024-02-20|    41-50|\n",
+      "|         31|     Grace|    Smith| 19|            1| 567.2999877929688|   2024-04-13|    18-30|\n",
+      "|         48|     Alice|    Smith| 23|            0| 762.8599853515625|   2024-03-04|    18-30|\n",
+      "|         13|   Charlie|    Jones| 24|            0| 330.8699951171875|   2023-11-11|    18-30|\n",
+      "|         42|   Charlie|    Smith| 66|            1| 392.2699890136719|   2023-11-03|    61-70|\n",
+      "|          9|      Emma|    Jones| 50|            0| 575.6900024414062|   2023-12-11|    41-50|\n",
+      "|         88|      Jack|Rodriguez| 30|            1| 840.4299926757812|   2023-07-27|    18-30|\n",
+      "|          7|     Grace|    Jones| 53|            0|29.719999313354492|   2023-10-01|    51-60|\n",
+      "|         70|       Bob| Williams| 48|            0|            711.75|   2024-04-11|    41-50|\n",
+      "|          4|     Alice|Rodriguez| 62|            0| 729.6900024414062|   2024-01-05|    61-70|\n",
+      "|         29|   Charlie|   Garcia| 42|            0| 696.1900024414062|   2023-07-26|    41-50|\n",
+      "+-----------+----------+---------+---+-------------+------------------+-------------+---------+\n",
+      "only showing top 20 rows\n"
+     ]
+    }
+   ],
+   "source": [
+    "data_cleaned.show()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 36,
+   "id": "c39cfd6d-d870-488c-a6eb-dc71e1dcf218",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "+-----------+---------------+---+------+------------------+-------------+-------------+\n",
+      "|Customer_ID|  Customer_Name|Age|Gender|   Purchase_Amount|Purchase_Date|Gender_Binary|\n",
+      "+-----------+---------------+---+------+------------------+-------------+-------------+\n",
+      "|         35| Grace Williams| 58|  Male|139.00999450683594|   2024-04-23|            1|\n",
+      "|         93|  Bob Rodriguez| 26|  Male| 891.4600219726562|   2024-01-22|            1|\n",
+      "|         58|    Alice Jones| 50|  Male| 397.8900146484375|   2023-10-04|            1|\n",
+      "|         97|      Ivy Brown| 21|  Male|465.45001220703125|   2023-09-06|            1|\n",
+      "|         25|  David Johnson| 41|Female| 964.0399780273438|   2023-12-30|            0|\n",
+      "|         76|David Rodriguez| 23|  Male| 212.2899932861328|   2024-03-16|            1|\n",
+      "|         33|Grace Rodriguez| 43|  Male| 366.4200134277344|   2023-07-30|            1|\n",
+      "|         72|   Frank Miller| 66|Female| 932.3599853515625|   2024-02-19|            0|\n",
+      "|         18|  Jack Martinez| 64|Female| 831.7999877929688|   2023-11-07|            0|\n",
+      "|         83| Alice Martinez| 41|Female| 185.8300018310547|   2024-02-20|            0|\n",
+      "|         31|    Grace Smith| 19|  Male| 567.2999877929688|   2024-04-13|            1|\n",
+      "|         48|    Alice Smith| 23|Female| 762.8599853515625|   2024-03-04|            0|\n",
+      "|         13|  Charlie Jones| 24|Female| 330.8699951171875|   2023-11-11|            0|\n",
+      "|         42|  Charlie Smith| 66|  Male| 392.2699890136719|   2023-11-03|            1|\n",
+      "|          9|     Emma Jones| 50|Female| 575.6900024414062|   2023-12-11|            0|\n",
+      "|         88| Jack Rodriguez| 30|  Male| 840.4299926757812|   2023-07-27|            1|\n",
+      "|          7|    Grace Jones| 53|Female|29.719999313354492|   2023-10-01|            0|\n",
+      "|         70|   Bob Williams| 48|Female|            711.75|   2024-04-11|            0|\n",
+      "|          4|Alice Rodriguez| 62|Female| 729.6900024414062|   2024-01-05|            0|\n",
+      "|         29| Charlie Garcia| 42|Female| 696.1900024414062|   2023-07-26|            0|\n",
+      "+-----------+---------------+---+------+------------------+-------------+-------------+\n",
+      "only showing top 20 rows\n"
+     ]
+    }
+   ],
+   "source": [
+    "data_cleaned_gender.show()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 43,
+   "id": "549df0bd-1318-4fd4-ba23-584196cf866c",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#What is the total purchase amount for each gender in the dataset? \n",
+    "#Use the data_cleaned_gender dataframe and Group the data \n",
+    "#by gender and calculate the sum of all purchase amounts.\n",
+    "total_purchase_amount_for_gender = data_cleaned_gender.groupBy('Gender_Binary')\\\n",
+    "    .agg(round(spark_sum('Purchase_Amount'), 2).alias('Sum_of_purchase_Amount'))\\\n",
+    "    .collect()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 44,
+   "id": "964398a6-5769-4748-add1-dd59ba700850",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Gender_Binary: 1, Total_Purchase_Amount: 24599.89\n",
+      "Gender_Binary: 0, Total_Purchase_Amount: 28215.78\n"
+     ]
+    }
+   ],
+   "source": [
+    "for row in total_purchase_amount_for_gender:\n",
+    "    print(f\"Gender_Binary: {row['Gender_Binary']}, Total_Purchase_Amount: {row['Sum_of_purchase_Amount']}\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 50,
+   "id": "e7b06b8e-9d7a-4862-ab90-3bc493da6730",
+   "metadata": {
+    "scrolled": true
+   },
+   "outputs": [],
+   "source": [
+    "\"\"\"What is the average purchase amount for different age groups? \n",
+    "Use the data_cleaned dataframe and create age group categories (18-30, 31-40, 41-50, 51-60, 61-70) and \n",
+    "calculate the mean purchase amount for each group.\"\"\"\n",
+    "\n",
+    "mean_purchase_amount_by_age_group = data_cleaned.withColumn(\n",
+    "    \"age_group\",\n",
+    "    when((col(\"Age\") >= 18) & (col(\"Age\") <= 30), \"18-30\")\n",
+    "    .when((col(\"Age\") >= 31) & (col(\"Age\") <= 40), \"31-40\")\n",
+    "    .when((col(\"Age\") >= 41) & (col(\"Age\") <= 50), \"41-50\")\n",
+    "    .when((col(\"Age\") >= 51) & (col(\"Age\") <= 60), \"51-60\")\n",
+    "    .otherwise(\"61-70\")\n",
+    ").groupBy('age_group')\\\n",
+    "    .agg(round(avg('Purchase_Amount'),2).alias('Average_Purchase_Amount'))\\\n",
+    "    .collect()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 51,
+   "id": "867be328-b3b8-4b4a-8521-4730213fac6a",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Age_Group: 18-30, Average_spent:570.81\n",
+      "Age_Group: 41-50, Average_spent:493.95\n",
+      "Age_Group: 31-40, Average_spent:555.24\n",
+      "Age_Group: 51-60, Average_spent:494.52\n",
+      "Age_Group: 61-70, Average_spent:533.58\n"
+     ]
+    }
+   ],
+   "source": [
+    "for row in mean_purchase_amount_by_age_group:\n",
+    "    print(f\"Age_Group: {row['age_group']}, Average_spent:{row['Average_Purchase_Amount']}\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "b6633569-36f8-4082-930a-7ccb087d57a8",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3 (ipykernel)",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.13.15"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
